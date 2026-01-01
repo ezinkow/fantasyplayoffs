@@ -1,30 +1,26 @@
 module.exports = function (sequelize, DataTypes) {
-    const Picks = sequelize.define("Picks", {
+    const Rosters = sequelize.define("Rosters", {
         name: {
             type: DataTypes.TEXT,
             allowNull: false
         },
-        series_id: {
+        player_name: {
             type: DataTypes.TEXT,
             allowNull: true,
         },
-        pick: {
+        position: {
             type: DataTypes.TEXT,
             allowNull: true,
         },
-        points: {
+        team: {
             type: DataTypes.TEXT,
             allowNull: true,
         },
-        games: {
-            type: DataTypes.TEXT,
-            allowNull: true,
-        },
-        series_round: {
+        tier: {
             type: DataTypes.TEXT,
             allowNull: true,
         }
     });
 
-    return Picks;
+    return Rosters;
 };

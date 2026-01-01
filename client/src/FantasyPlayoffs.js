@@ -7,11 +7,11 @@ import {
 } from "react-router-dom";
 import 'bootstrap/dist/css/bootstrap.min.css';
 import Home from './pages/Home';
-import Picks from './pages/Picks';
-import PicksDisplay from './pages/PicksDisplay';
+import Scoreboard from './pages/Scoreboard';
 import Standings from './pages/Standings';
+import RosterPicks from './pages/RosterPicks';
+import MyRoster from './pages/MyRoster';
 import SignUp from './pages/SignUp';
-import PrettyPicks from './pages/PrettyPicks';
 
 export default function App() {
 
@@ -19,10 +19,10 @@ export default function App() {
     <Router>
       <Routes>
         <Route path="/signup" element={<SignUp />} />
-        <Route path="/picks" element={<Picks />} />
-        <Route path="/picksdisplay" element={<PicksDisplay />} />
+        <Route path="/rosterpicks" element={<RosterPicks />} />
+        <Route path="/scoreboard" element={<Scoreboard />} />
+        <Route path="/myroster" element={<MyRoster />} />
         <Route path="/standings" element={<Standings />} />
-        <Route path="/prettypicks" element={<PrettyPicks />} />
         <Route path="/" element={<Home />} />
       </Routes>
     </Router>

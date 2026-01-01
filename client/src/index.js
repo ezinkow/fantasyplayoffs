@@ -1,14 +1,14 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import './index.css';
-import MlbPlayoffs from './MlbPlayoffs';
+import FantasyPlayoffs from './FantasyPlayoffs';
 import reportWebVitals from './reportWebVitals';
 
 const rootElement = document.getElementById("root");
 const root = createRoot(document.getElementById("root"));
 root.render(
     <StrictMode className='body'>
-      <MlbPlayoffs />
+      <FantasyPlayoffs />
     </StrictMode>
 );  
 

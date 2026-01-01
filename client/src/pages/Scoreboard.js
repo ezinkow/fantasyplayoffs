@@ -1,7 +1,7 @@
 import React from 'react'
 import Navbar from '../components/Navbar'
-import Picks from '../components/Picks'
-import PicksTiebreaker from '../components/PicksTiebreaker'
+import Scoreboard from '../components/Scoreboard'
+// import PicksTiebreaker from '../components/PicksTiebreaker'
 
 export default function PicksContainer() {
 
@@ -10,7 +10,7 @@ export default function PicksContainer() {
         <div>
             <Navbar />
             <div className='=container'>
-                <Picks />
+                <Scoreboard />
             </div>
         </div>
     )

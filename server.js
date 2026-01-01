@@ -19,16 +19,16 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 // Routes
-require("./routes/picks-api-routes.js")(app);
-require("./routes/series-api-routes.js")(app);
+require("./routes/rosters-api-routes.js")(app);
+require("./routes/playerpools-api-routes.js")(app);
 require("./routes/names-api-routes.js")(app);
 require("./routes/standings-api-routes.js")(app);
-require("./routes/roundvalues-api-routes.js")(app);
-require("./routes/picksdisplay-api-routes.js")(app);
+require("./routes/startingrosters-api-routes.js")(app);
+require("./routes/gamestates-api-routes.js")(app);
 
 // Starts the server to begin listening
-db.sequelize.sync({ force: false }).then(function() {
-  app.listen(PORT, function() {
-      console.log("App listening on PORT " + PORT);
+db.sequelize.sync({ force: false }).then(function () {
+  app.listen(PORT, function () {
+    console.log("App listening on PORT " + PORT);
   });
 });
