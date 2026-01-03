@@ -29,9 +29,9 @@ require("./routes/startingrosters-api-routes.js")(app);
 require("./routes/gamestates-api-routes.js")(app);
 
 // React Router fallback
-if (process.env.NODE_ENV === "production") {
-  app.get("*", (req, res) => {
-    res.sendFile(path.join(__dirname, "client/build/index.html"));
+if (process.env.NODE_ENV === 'production') {
+  app.get('*', (req, res) => {
+    res.sendFile(path.resolve(__dirname, 'client', 'build', 'index.html'));
   });
 }
 
