@@ -24,7 +24,7 @@ export default function RosterPicks() {
 
   const tierLimits = { 1: 2, 2: 3, 3: 2, 4: 4, 5: 2, 6: 1 };
 
-  // Fetch players grouped by tier
+  // Fetch players grouped by tier, alphabetically
   useEffect(() => {
     const fetchPlayers = async () => {
       try {
@@ -35,6 +35,12 @@ export default function RosterPicks() {
           acc[tier].push(player);
           return acc;
         }, {});
+
+        // Sort each tier alphabetically by player_name
+        Object.keys(groupedByTier).forEach((tier) => {
+          groupedByTier[tier].sort((a, b) => a.player_name.localeCompare(b.player_name));
+        });
+
         setPlayerpool(groupedByTier);
       } catch (err) {
         console.error(err);
@@ -42,6 +48,7 @@ export default function RosterPicks() {
     };
     fetchPlayers();
   }, []);
+
 
   // Fetch names
   useEffect(() => {
