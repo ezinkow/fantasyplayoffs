@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import toast from "react-hot-toast";
+import toast, { ToastBar } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
+import { Toaster } from 'react-hot-toast';
 
 const ROUND_RULES = {
     1: { QB: 1, RB: 2, WR: 3, SUPERFLEX: 2 },
@@ -174,6 +175,7 @@ export default function MyRoster() {
 
     return (
         <div style={{ padding: "16px" }}>
+            <Toaster />
             {/* Name + Password */}
             <div style={{ marginBottom: "16px" }}>
                 <select value={selectedName} onChange={handleNameChange}>
