@@ -1,10 +1,18 @@
 const { StartingRosters, PlayerPools } = require("../models");
 
+const ROUND_DEADLINES = {
+  1: new Date("2026-01-10T21:30:00Z"),
+  2: new Date("2026-01-17T21:30:00Z"),
+  3: new Date("2026-01-25T20:00:00Z"),
+  4: new Date("2026-02-08T23:30:00Z"),
+};
+
 let cachedData = null;
 let lastFetch = 0;
 const CACHE_TTL = 60 * 1000; // 1 minute
 
 module.exports = function (app) {
+  // GET all rosters (with caching)
   app.get("/api/startingrosters", async (req, res) => {
     try {
       if (cachedData && Date.now() - lastFetch < CACHE_TTL) {
@@ -16,9 +24,7 @@ module.exports = function (app) {
         raw: true,
       });
 
-      const playerNames = [
-        ...new Set(rosters.map((r) => r.player_name)),
-      ];
+      const playerNames = [...new Set(rosters.map(r => r.player_name))];
 
       const pools = await PlayerPools.findAll({
         where: { player_name: playerNames },
@@ -26,19 +32,15 @@ module.exports = function (app) {
       });
 
       const poolMap = {};
-      pools.forEach((p) => {
-        poolMap[p.player_name] = p;
-      });
+      pools.forEach(p => (poolMap[p.player_name] = p));
 
-      const merged = rosters.map((r) => {
+      const merged = rosters.map(r => {
         const pool = poolMap[r.player_name] || {};
         return {
           ...r,
           wild_card_score: Number(pool.wild_card_score || 0),
           divisional_score: Number(pool.divisional_score || 0),
-          conf_championship_score: Number(
-            pool.conf_championship_score || 0
-          ),
+          conf_championship_score: Number(pool.conf_championship_score || 0),
           super_bowl_score: Number(pool.super_bowl_score || 0),
           eliminated: pool.eliminated || null,
         };
@@ -54,32 +56,73 @@ module.exports = function (app) {
     }
   });
 
-  app.post("/api/startingrosters", async (req, res) => {
+  // GET my roster for a round
+  app.get("/api/startingrosters/my", async (req, res) => {
     try {
-      const rows = req.body;
+      const { name, round } = req.query;
+      const r = Number(round);
 
-      if (!Array.isArray(rows) || !rows.length) {
-        return res.status(400).json({ error: "Invalid roster payload" });
+      if (!name || !r || !ROUND_DEADLINES[r]) {
+        return res.status(400).json({ error: "Invalid request" });
       }
 
-      // Optional: clear existing roster for this user + round
-      const { name, round } = rows[0];
-
-      await StartingRosters.destroy({
-        where: { name, round },
+      const roster = await StartingRosters.findAll({
+        where: { name, round: r },
+        raw: true,
       });
 
-      // Insert new roster
-      await StartingRosters.bulkCreate(rows);
+      res.json(roster);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Failed to load roster" });
+    }
+  });
 
-      // Clear cache so scoreboard updates
-      cachedData = null;
-      lastFetch = 0;
+  // POST new roster (first-time submission)
+  app.post("/api/startingrosters", async (req, res) => {
+    try {
+      const entries = req.body;
+      const { name, round } = entries[0];
+      const r = Number(round);
+
+      if (new Date() > ROUND_DEADLINES[r]) {
+        return res.status(403).json({ error: "Roster locked for this round" });
+      }
+
+      const existing = await StartingRosters.findOne({ where: { name, round: r } });
+      if (existing) {
+        return res.status(409).json({ error: "Roster already submitted for this round" });
+      }
+
+      await StartingRosters.bulkCreate(entries);
+      res.json({ success: true });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Failed to submit roster" });
+    }
+  });
+
+  // PUT to update roster (edit before deadline)
+  app.put("/api/startingrosters", async (req, res) => {
+    try {
+      const entries = req.body;
+      const { name, round } = entries[0];
+      const r = Number(round);
+
+      if (new Date() > ROUND_DEADLINES[r]) {
+        return res.status(403).json({ error: "Roster locked for this round" });
+      }
+
+      // Delete old entries for this user/round
+      await StartingRosters.destroy({ where: { name, round: r } });
+
+      // Insert new/updated entries
+      await StartingRosters.bulkCreate(entries);
 
       res.json({ success: true });
     } catch (err) {
-      console.error("Starting roster submit failed:", err);
-      res.status(500).json({ error: "Failed to submit roster" });
+      console.error(err);
+      res.status(500).json({ error: "Failed to update roster" });
     }
   });
 };

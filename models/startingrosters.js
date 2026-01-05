@@ -1,31 +1,22 @@
 module.exports = (sequelize, DataTypes) => {
-    const StartingRosters = sequelize.define("StartingRosters", {
-        name: {
-            type: DataTypes.TEXT,
-            allowNull: false,
+    const StartingRosters = sequelize.define(
+        "StartingRosters",
+        {
+            name: DataTypes.TEXT,
+            round: DataTypes.INTEGER,
+            player_name: DataTypes.TEXT,
+            position: DataTypes.TEXT,
+            team: DataTypes.TEXT,
+            slot: DataTypes.TEXT,
         },
-        round: {
-            type: DataTypes.INTEGER,
-            allowNull: false,
-        },
-        player_name: {
-            type: DataTypes.TEXT,
-            allowNull: false,
-        },
-        position: {
-            type: DataTypes.TEXT,
-            allowNull: false,
-        },
-        team: {
-            type: DataTypes.TEXT,
-            allowNull: false,
-        },
-        slot: {
-            // LINEUP SLOT (QB / RB / WR / SUPERFLEX)
-            type: DataTypes.TEXT,
-            allowNull: false,
+        {
+            indexes: [
+                {
+                    unique: true,
+                    fields: ["name", "round", "player_name"],
+                },
+            ],
         }
-    });
-
+    );
     return StartingRosters;
 };
