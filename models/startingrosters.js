@@ -2,7 +2,7 @@ module.exports = (sequelize, DataTypes) => {
     const StartingRosters = sequelize.define(
         "StartingRosters",
         {
-            name: DataTypes.TEXT,
+            name: DataTypes.STRING(100),
             round: DataTypes.INTEGER,
             player_name: DataTypes.TEXT,
             position: DataTypes.TEXT,
