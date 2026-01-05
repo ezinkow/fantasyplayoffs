@@ -51,6 +51,9 @@ export default function MyRoster() {
 
     /* Verify password */
     const handleVerify = async () => {
+        // force any focused element to blur to prevent gray overlay
+        if (document.activeElement) document.activeElement.blur();
+
         setAuthError(false);
 
         try {
@@ -178,104 +181,118 @@ export default function MyRoster() {
             <Toaster />
             {/* Name + Password */}
             <div style={{ marginBottom: "16px" }}>
-                <select value={selectedName} onChange={handleNameChange}>
-                    <option value="">-- Select Name --</option>
-                    {names.map(n => <option key={n.id} value={n.name}>{n.name}</option>)}
-                </select>
+                <label>
+                    Name:{" "}
+                    <select
+                        value={selectedName}
+                        onChange={handleNameChange}
+                        disabled={selectedName && !authenticated} // disable until password verified
+                    >
+                        <option value="">-- Select Name --</option>
+                        {names.map(n => (
+                            <option key={n.id} value={n.name}>
+                                {n.name}
+                            </option>
+                        ))}
+                    </select>
+                </label>
 
                 {selectedName && !authenticated && (
-                    <>
+                    <div
+                        style={{ marginTop: "8px", display: "flex", alignItems: "center", gap: "8px" }}
+                    >
                         <input
                             type="password"
                             placeholder="Password"
                             value={password}
                             onChange={e => setPassword(e.target.value)}
-                            style={{ marginLeft: "8px" }}
+                            onKeyDown={e => e.key === "Enter" && handleVerify()} // hit Enter to submit
                         />
-                        <button onClick={handleVerify} style={{ marginLeft: "8px" }}>
-                            Submit
-                        </button>
-                    </>
+                        <button onClick={handleVerify}>Submit</button>
+                    </div>
                 )}
 
                 {authError && <div style={{ color: "red", marginTop: "6px" }}>Incorrect password</div>}
             </div>
 
+
             {/* Main roster UI */}
-            {authenticated && (
-                <>
-                    <label>
-                        Round:
-                        <select
-                            value={selectedRound}
-                            onChange={e => setSelectedRound(Number(e.target.value))}
-                            style={{ marginLeft: "8px" }}
-                        >
-                            {[1, 2, 3, 4].map(r => <option key={r} value={r}>Round {r}</option>)}
-                        </select>
-                    </label>
+            {
+                authenticated && (
+                    <>
+                        <label>
+                            Round:
+                            <select
+                                value={selectedRound}
+                                onChange={e => setSelectedRound(Number(e.target.value))}
+                                style={{ marginLeft: "8px" }}
+                            >
+                                {[1, 2, 3, 4].map(r => <option key={r} value={r}>Round {r}</option>)}
+                            </select>
+                        </label>
 
-                    <h4>Available Players</h4>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-                        {availablePlayers.map(player => {
-                            const assigned = Object.values(slots).flat().some(p => p.player_name === player.player_name);
-                            const colors = positionColors[player.position] || positionColors.default;
+                        <h4>Available Players</h4>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                            {availablePlayers.map(player => {
+                                const assigned = Object.values(slots).flat().some(p => p.player_name === player.player_name);
+                                const colors = positionColors[player.position] || positionColors.default;
 
-                            return (
-                                <div
-                                    key={player.player_name}
-                                    onClick={() => !assigned && addToSlot(player)}
-                                    style={{
-                                        padding: "4px 8px",
-                                        borderRadius: "6px",
-                                        cursor: assigned ? "not-allowed" : "pointer",
-                                        opacity: assigned ? 0.5 : 1,
-                                        backgroundColor: colors.bg,
-                                        color: colors.text,
-                                        border: `1px solid ${colors.text}`,
-                                    }}
-                                >
-                                    {player.player_name} ({player.team} / {player.position})
-                                </div>
-                            );
-                        })}
-                    </div>
-
-                    <h4 style={{ marginTop: "16px" }}>Roster Slots</h4>
-                    <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
-                        {Object.entries(slots).map(([slot, players]) => (
-                            <div key={slot}>
-                                <h5>
-                                    {slot}: {players.length} / {ROUND_RULES[Number(selectedRound)][slot]}
-                                    {players.length < ROUND_RULES[Number(selectedRound)][slot] &&
-                                        ` (${ROUND_RULES[Number(selectedRound)][slot] - players.length} more needed)`}
-                                </h5>
-                                {players.map(p => (
-                                    <div key={p.player_name}>
-                                        {p.player_name}
-                                        <button onClick={() => removeFromSlot(p, slot)}>✕</button>
+                                return (
+                                    <div
+                                        key={player.player_name}
+                                        onClick={() => !assigned && addToSlot(player)}
+                                        style={{
+                                            padding: "4px 8px",
+                                            borderRadius: "6px",
+                                            cursor: assigned ? "not-allowed" : "pointer",
+                                            opacity: assigned ? 0.5 : 1,
+                                            backgroundColor: colors.bg,
+                                            color: colors.text,
+                                            border: `1px solid ${colors.text}`,
+                                        }}
+                                    >
+                                        {player.player_name} ({player.team} / {player.position})
                                     </div>
-                                ))}
-                            </div>
-                        ))}
-                    </div>
-                    <button
-                        disabled={isLocked || !isComplete()}
-                        onClick={handleSubmit}
-                        title={submitTooltip} // tooltip on hover
-                        style={{
-                            marginTop: "16px",
-                            padding: "8px 16px",
-                            background: isLocked || !isComplete() ? "#a5b4fc" : "#4f46e5",
-                            color: "#fff",
-                            border: "none",
-                            cursor: isLocked || !isComplete() ? "not-allowed" : "pointer",
-                        }}
-                    >
-                        {isLocked ? "Roster Locked" : "Submit Roster"}
-                    </button>
-                </>
-            )}
-        </div>
+                                );
+                            })}
+                        </div>
+
+                        <h4 style={{ marginTop: "16px" }}>Roster Slots</h4>
+                        <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
+                            {Object.entries(slots).map(([slot, players]) => (
+                                <div key={slot}>
+                                    <h5>
+                                        {slot}: {players.length} / {ROUND_RULES[Number(selectedRound)][slot]}
+                                        {players.length < ROUND_RULES[Number(selectedRound)][slot] &&
+                                            ` (${ROUND_RULES[Number(selectedRound)][slot] - players.length} more needed)`}
+                                    </h5>
+                                    {players.map(p => (
+                                        <div key={p.player_name}>
+                                            {p.player_name}
+                                            <button onClick={() => removeFromSlot(p, slot)}>✕</button>
+                                        </div>
+                                    ))}
+                                </div>
+                            ))}
+                        </div>
+                        <button
+                            disabled={isLocked || !isComplete()}
+                            onClick={handleSubmit}
+                            title={submitTooltip} // tooltip on hover
+                            style={{
+                                marginTop: "16px",
+                                padding: "8px 16px",
+                                background: isLocked || !isComplete() ? "#a5b4fc" : "#4f46e5",
+                                color: "#fff",
+                                border: "none",
+                                cursor: isLocked || !isComplete() ? "not-allowed" : "pointer",
+                            }}
+                        >
+                            {isLocked ? "Roster Locked" : "Submit Roster"}
+                        </button>
+                    </>
+                )
+            }
+        </div >
     );
 }
