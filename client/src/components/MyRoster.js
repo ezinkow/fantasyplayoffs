@@ -49,13 +49,13 @@ export default function MyRoster() {
     /* Verify password */
     const handleVerify = async () => {
         setAuthError(false);
+        console.log(password)
 
         try {
             await axios.post("/api/names/verify", {
                 name: selectedName,
                 password,
             });
-
             setAuthenticated(true);
             toast.success("Password verified");
         } catch {

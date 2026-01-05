@@ -47,11 +47,12 @@ export default function NameSubmit() {
 
     const handleNameSubmit = event => {
         event.preventDefault()
-        console.log(real_name + name + email_address + email_opt_in)
+        console.log(real_name + name + password + email_address + email_opt_in)
         setIsOpen(true);
         axios.post('api/names', {
             real_name,
             name,
+            password,
             email_address,
             phone,
             email_opt_in,
