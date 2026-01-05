@@ -1,7 +1,7 @@
 module.exports = function (sequelize, DataTypes) {
     const StartingRosters = sequelize.define("StartingRosters", {
         name: {
-            type: DataTypes.STRING, // use STRING instead of TEXT to allow indexing
+            type: DataTypes.STRING(255),
             allowNull: false
         },
         round: {
@@ -9,28 +9,21 @@ module.exports = function (sequelize, DataTypes) {
             allowNull: false
         },
         player_name: {
-            type: DataTypes.STRING, // use STRING to allow indexing
+            type: DataTypes.STRING(255),
             allowNull: false
         },
         position: {
-            type: DataTypes.STRING,
+            type: DataTypes.STRING(255),
             allowNull: false
         },
         team: {
-            type: DataTypes.STRING,
+            type: DataTypes.STRING(255),
             allowNull: false
         },
         slot: {
-            type: DataTypes.STRING,
+            type: DataTypes.STRING(255),
             allowNull: false
         }
-    }, {
-        indexes: [
-            {
-                unique: true,
-                fields: ["name", "round", "player_name"]
-            }
-        ]
     });
 
     return StartingRosters;
