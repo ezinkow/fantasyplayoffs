@@ -13,6 +13,7 @@ export default function RosterPicks() {
   const [password, setPassword] = useState("");
   const [authenticated, setAuthenticated] = useState(false);
   const [names, setNames] = useState([]);
+  const [sortMode, setSortMode] = useState("name"); // "name" | "position"
 
   const positionColors = {
     QB: { bg: "#fee2e2", text: "#991b1b", border: "#ef4444" },
@@ -68,6 +69,28 @@ export default function RosterPicks() {
       {n.name}
     </Dropdown.Item>
   ));
+
+  const positionOrder = { QB: 1, RB: 2, WR: 3, TE: 4 };
+
+  const sortPlayers = (players) => {
+    if (sortMode === "position") {
+      return [...players].sort((a, b) => {
+        const posDiff =
+          (positionOrder[a.position] || 99) -
+          (positionOrder[b.position] || 99);
+
+        if (posDiff !== 0) return posDiff;
+
+        // secondary sort A–Z within position
+        return a.player_name.localeCompare(b.player_name);
+      });
+    }
+
+    // default: alphabetical
+    return [...players].sort((a, b) =>
+      a.player_name.localeCompare(b.player_name)
+    );
+  };
 
   const handleNameSelect = (event) => {
     setName(event);
@@ -206,6 +229,23 @@ export default function RosterPicks() {
 
       {authenticated && (
         <>
+          <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
+            <Button
+              size="sm"
+              variant={sortMode === "name" ? "primary" : "outline-primary"}
+              onClick={() => setSortMode("name")}
+            >
+              Sort A–Z
+            </Button>
+
+            <Button
+              size="sm"
+              variant={sortMode === "position" ? "primary" : "outline-primary"}
+              onClick={() => setSortMode("position")}
+            >
+              Sort by Position
+            </Button>
+          </div>
           {/* Player Columns (vertical) */}
           <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginTop: "12px" }}>
             {Object.entries(playerpool).map(([tier, players]) => (
@@ -213,7 +253,7 @@ export default function RosterPicks() {
                 <h3 style={{ fontSize: "16px", fontWeight: "bold" }}>
                   Tier {tier} (Pick {tierLimits[tier] || "—"})
                 </h3>
-                {players.map((player) => {
+                {sortPlayers(players).map((player) => {
                   const tierSelected = selectedPlayers[tier] || [];
                   const isSelected = tierSelected.includes(player.player_name);
 
