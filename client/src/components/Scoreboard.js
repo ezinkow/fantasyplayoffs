@@ -177,10 +177,10 @@ export default function Scoreboard() {
 
                             const points = player
                               ? Number(
-                                  player[
-                                    ROUND_SCORE_COLUMN[round]
-                                  ] || 0
-                                )
+                                player[
+                                ROUND_SCORE_COLUMN[round]
+                                ] || 0
+                              )
                               : 0;
 
                             roundTotal += points;
@@ -215,7 +215,9 @@ export default function Scoreboard() {
                                   }}
                                 >
                                   {player
-                                    ? `${player.player_name} (${player.team})`
+                                    ? player.player_name === "(hidden)"
+                                      ? "(hidden)"
+                                      : `${player.player_name} (${player.team})`
                                     : "---"}
                                 </span>
 
