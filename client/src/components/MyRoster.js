@@ -93,7 +93,7 @@ export default function MyRoster() {
         }
 
         fetchData();
-    }, [authenticated, selectedName, selectedRound, firstLoad]);
+    }, [authenticated, selectedName, selectedRound]);
 
     const isLocked = ROUND_DEADLINES[selectedRound] && new Date() > ROUND_DEADLINES[selectedRound];
 
