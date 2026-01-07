@@ -29,6 +29,25 @@ module.exports = function (app) {
     }
   });
 
+  app.get("/api/rosters/getmyroster", async (req, res) => {
+    try {
+      const { name } = req.query;
+      if (!name) return res.status(400).json({ error: "Missing name parameter" });
+
+      const rows = await Rosters.findAll({
+        where: { name },
+        order: [["id", "ASC"]],
+      });
+
+      // just return the data as an array
+      res.json(Array.isArray(rows) ? rows : []);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Failed to fetch user's roster" });
+    }
+  });
+};
+
   // ----------------------------------
   // POST roster (OVERWRITE SAFE)
   // ----------------------------------

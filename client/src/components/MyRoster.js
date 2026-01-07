@@ -35,6 +35,7 @@ export default function MyRoster() {
   const [selectedRound, setSelectedRound] = useState(1);
   const [firstLoad, setFirstLoad] = useState(true);
   const [authError, setAuthError] = useState(false);
+  const [verifying, setVerifying] = useState(false); // prevents double submission
 
   /* -------------------- FETCH NAMES -------------------- */
   useEffect(() => {
@@ -51,25 +52,22 @@ export default function MyRoster() {
 
   /* -------------------- VERIFY PASSWORD -------------------- */
   const handleVerify = async () => {
-    if (!selectedName || !password) return;
+    if (!selectedName || !password || verifying) return;
 
+    setVerifying(true);
     setAuthError(false);
 
     try {
-      const res = await axios.post("/api/names/verify", {
-        name: selectedName,
-        password,
-      });
+      const res = await axios.post("/api/names/verify", { name: selectedName, password });
 
       if (res.data.success) {
         setAuthenticated(true);
         toast.success("Password verified!");
 
-        // Fetch roster
+        // fetch roster for selected round
         const rosterRes = await axios.get("/api/startingrosters/my", {
           params: { name: selectedName, round: selectedRound },
         });
-
         const grouped = { QB: [], RB: [], WR: [], SUPERFLEX: [] };
         rosterRes.data.forEach((p) => grouped[p.slot].push(p));
         setSlots(grouped);
@@ -79,7 +77,7 @@ export default function MyRoster() {
           setFirstLoad(false);
         }
 
-        // Fetch available players
+        // fetch available players
         const playersRes = await axios.get("/api/rosters/getmyroster", {
           params: { name: selectedName },
         });
@@ -98,6 +96,8 @@ export default function MyRoster() {
       setAvailablePlayers([]);
       setAuthError(true);
       toast.error("Password verification failed");
+    } finally {
+      setVerifying(false);
     }
   };
 
@@ -120,7 +120,10 @@ export default function MyRoster() {
   };
 
   const removeFromSlot = (player, slot) => {
-    setSlots((prev) => ({ ...prev, [slot]: prev[slot].filter((p) => p.player_name !== player.player_name) }));
+    setSlots((prev) => ({
+      ...prev,
+      [slot]: prev[slot].filter((p) => p.player_name !== player.player_name),
+    }));
   };
 
   /* -------------------- SUBMIT ROSTER -------------------- */
@@ -164,7 +167,6 @@ export default function MyRoster() {
   return (
     <div style={{ padding: "16px" }}>
       <Toaster />
-
       <h1>My Roster</h1>
 
       {/* Name + Password */}
@@ -200,9 +202,11 @@ export default function MyRoster() {
               autoComplete="new-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleVerify()}
+              onKeyDown={(e) => e.key === "Enter" && !verifying && handleVerify()}
             />
-            <button onClick={handleVerify}>Submit</button>
+            <button onClick={handleVerify} disabled={verifying}>
+              Submit
+            </button>
           </div>
         )}
 
@@ -214,7 +218,10 @@ export default function MyRoster() {
         <>
           <label>
             Round:{" "}
-            <select value={selectedRound} onChange={(e) => setSelectedRound(Number(e.target.value))}>
+            <select
+              value={selectedRound}
+              onChange={(e) => setSelectedRound(Number(e.target.value))}
+            >
               {[1, 2, 3, 4].map((r) => (
                 <option key={r} value={r}>
                   Round {r}
