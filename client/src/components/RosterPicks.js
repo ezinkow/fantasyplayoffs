@@ -226,7 +226,17 @@ export default function RosterPicks() {
 
   return (
     <div style={{ padding: "12px", display: "flex", flexDirection: "column", gap: "16px" }}>
-      <Toaster />
+      <Toaster
+        position="top-center"
+        reverseOrder={false}
+        toastOptions={{
+          style: {
+            fontSize: '14px',
+            padding: '8px 12px',
+          },
+          duration: 3000,
+        }}
+      />
 
       {/* Roster Steps */}
       <div style={{ border: "1px solid #d1d5db", borderRadius: "8px", padding: "8px", backgroundColor: "#f9fafb" }}>
