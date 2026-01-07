@@ -13,7 +13,7 @@ export default function RosterPicks() {
   const [password, setPassword] = useState("");
   const [authenticated, setAuthenticated] = useState(false);
   const [names, setNames] = useState([]);
-  const [sortMode, setSortMode] = useState("name"); // "name" | "position" | "team"
+  const [sortMode, setSortMode] = useState("name");
   const [showSteps, setShowSteps] = useState(true);
 
   const positionColors = {
@@ -26,25 +26,21 @@ export default function RosterPicks() {
 
   const tierLimits = { 1: 3, 2: 3, 3: 3, 4: 2, 5: 2, 6: 1 };
 
-  const positionOrder = { QB: 1, RB: 2, WR: 3, TE: 4 };
-
-  /* -------------------- FETCH DATA -------------------- */
+  /* -------------------- DATA FETCH -------------------- */
   useEffect(() => {
     const fetchPlayers = async () => {
       try {
-        const response = await axios.get("/api/playerpools");
-        const groupedByTier = response.data.reduce((acc, player) => {
-          const tier = player.tier || "Unknown Tier";
+        const res = await axios.get("/api/playerpools");
+        const grouped = res.data.reduce((acc, p) => {
+          const tier = p.tier || "Unknown Tier";
           if (!acc[tier]) acc[tier] = [];
-          acc[tier].push(player);
+          acc[tier].push(p);
           return acc;
         }, {});
-
-        Object.keys(groupedByTier).forEach((tier) => {
-          groupedByTier[tier].sort((a, b) => a.player_name.localeCompare(b.player_name));
-        });
-
-        setPlayerpool(groupedByTier);
+        Object.keys(grouped).forEach((tier) =>
+          grouped[tier].sort((a, b) => a.player_name.localeCompare(b.player_name))
+        );
+        setPlayerpool(grouped);
       } catch (err) {
         console.error(err);
       }
@@ -55,8 +51,8 @@ export default function RosterPicks() {
   useEffect(() => {
     const fetchNames = async () => {
       try {
-        const response = await axios.get("/api/names");
-        setNames(response.data.sort((a, b) => a.name.localeCompare(b.name)));
+        const res = await axios.get("/api/names");
+        setNames(res.data.sort((a, b) => a.name.localeCompare(b.name)));
       } catch (err) {
         console.error(err);
       }
@@ -65,23 +61,27 @@ export default function RosterPicks() {
   }, []);
 
   const namesList = names.map((n) => (
-    <Dropdown.Item key={n.name} eventKey={n.name}>
+    <Dropdown.Item eventKey={n.name} key={n.name}>
       {n.name}
     </Dropdown.Item>
   ));
 
+  const positionOrder = { QB: 1, RB: 2, WR: 3, TE: 4 };
   const sortPlayers = (players) => {
     const list = [...players];
     switch (sortMode) {
       case "position":
         return list.sort((a, b) => {
-          const posDiff = (positionOrder[a.position] || 99) - (positionOrder[b.position] || 99);
-          return posDiff !== 0 ? posDiff : a.player_name.localeCompare(b.player_name);
+          const posDiff =
+            (positionOrder[a.position] || 99) - (positionOrder[b.position] || 99);
+          if (posDiff !== 0) return posDiff;
+          return a.player_name.localeCompare(b.player_name);
         });
       case "team":
         return list.sort((a, b) => {
           const teamDiff = (a.team || "").localeCompare(b.team || "");
-          return teamDiff !== 0 ? teamDiff : a.player_name.localeCompare(b.player_name);
+          if (teamDiff !== 0) return teamDiff;
+          return a.player_name.localeCompare(b.player_name);
         });
       case "name":
       default:
@@ -89,15 +89,8 @@ export default function RosterPicks() {
     }
   };
 
-  /* -------------------- HELPERS -------------------- */
   const getTotalSelectedCount = () =>
     Object.values(selectedPlayers).reduce((sum, arr) => sum + arr.length, 0);
-
-  const getQBCount = () =>
-    Object.values(selectedPlayers)
-      .flat()
-      .map((p) => Object.values(playerpool).flat().find((pl) => pl.player_name === p))
-      .filter((p) => p?.position === "QB").length;
 
   const validateRoster = () => {
     const total = getTotalSelectedCount();
@@ -115,9 +108,8 @@ export default function RosterPicks() {
     return true;
   };
 
-  /* -------------------- AUTH -------------------- */
-  const handleNameSelect = (selectedName) => {
-    setName(selectedName);
+  const handleNameSelect = (event) => {
+    setName(event);
     setAuthenticated(false);
     setPassword("");
     setSelectedPlayers({});
@@ -126,8 +118,12 @@ export default function RosterPicks() {
   const handlePasswordChange = (e) => setPassword(e.target.value);
 
   const handleVerifyPassword = async () => {
-    if (!name || name === "SELECT YOUR NAME IN DROPDOWN!") return toast.error("Select your name first!");
-    if (!password) return toast.error("Enter your password");
+    if (!name || name === "SELECT YOUR NAME IN DROPDOWN!") {
+      return toast.error("Please select your name first!");
+    }
+    if (!password) {
+      return toast.error("Please enter your password!");
+    }
 
     try {
       const res = await axios.post("/api/names/verify", { name, password });
@@ -136,15 +132,14 @@ export default function RosterPicks() {
         toast.success("Password verified! You can now select players and submit your roster.");
       } else {
         setAuthenticated(false);
-        toast.error("Incorrect password");
+        toast.error("Incorrect password. Please try again.");
       }
     } catch (err) {
       console.error(err);
-      toast.error("Error verifying password");
+      toast.error("Error verifying password. Try again.");
     }
   };
 
-  /* -------------------- PLAYER SELECT -------------------- */
   const handlePlayerSelect = (tier, playerName) => {
     if (!authenticated) return;
 
@@ -155,21 +150,21 @@ export default function RosterPicks() {
         .map((p) => Object.values(playerpool).flat().find((pl) => pl.player_name === p))
         .filter((p) => p?.position === "QB").length;
 
-      const playerObj = Object.values(playerpool).flat().find((p) => p.player_name === playerName);
+      const playerObj = Object.values(playerpool)
+        .flat()
+        .find((p) => p.player_name === playerName);
+
       if (!playerObj) return prev;
 
-      // Deselect
       if (tierSelected.includes(playerName)) {
         return { ...prev, [tier]: tierSelected.filter((p) => p !== playerName) };
       }
 
-      // QB limit
       if (playerObj.position === "QB" && qbCount >= 2) {
         toast.error("You can only select 2 QBs total");
         return prev;
       }
 
-      // Tier limit
       if (tierSelected.length >= (tierLimits[tier] || 99)) {
         toast.error(`Tier limit reached: ${tierLimits[tier]}`);
         return prev;
@@ -179,15 +174,21 @@ export default function RosterPicks() {
     });
   };
 
-  /* -------------------- SUBMIT -------------------- */
   const handleSubmitClick = async () => {
-    if (!authenticated) return toast.error("Verify password first");
+    if (!authenticated) {
+      return toast.error("Please verify your password first!");
+    }
+    if (!name || name === "SELECT YOUR NAME IN DROPDOWN!") {
+      return toast.error("Please select your name");
+    }
     if (!validateRoster()) return;
 
-    const allPlayersMap = Object.values(playerpool).flat().reduce((acc, p) => {
-      acc[p.player_name] = p;
-      return acc;
-    }, {});
+    const allPlayersMap = Object.values(playerpool)
+      .flat()
+      .reduce((acc, p) => {
+        acc[p.player_name] = p;
+        return acc;
+      }, {});
 
     const payload = Object.entries(selectedPlayers)
       .flatMap(([tier, players]) =>
@@ -213,133 +214,160 @@ export default function RosterPicks() {
       setPassword("");
       setAuthenticated(false);
     } catch (err) {
-      console.error(err);
+      console.error("Error submitting roster:", err);
       toast.error("Error submitting your roster. Please try again.");
     }
   };
 
   const isRosterValid =
     getTotalSelectedCount() === 14 &&
-    Object.entries(tierLimits).every(([tier, required]) => (selectedPlayers[tier] || []).length === required);
+    Object.entries(tierLimits).every(
+      ([tier, required]) => (selectedPlayers[tier] || []).length === required
+    );
 
-  const qbCount = getQBCount();
-
+  /* -------------------- RENDER -------------------- */
   return (
     <div style={{ padding: "12px", display: "flex", flexDirection: "column", gap: "16px" }}>
-      <Toaster
-        position="top-center"
-        reverseOrder={false}
-        toastOptions={{
-          style: {
-            fontSize: '14px',
-            padding: '8px 12px',
-          },
-          duration: 3000,
-        }}
-      />
+      <Toaster />
 
-      {/* Roster Steps */}
-      <div style={{ border: "1px solid #d1d5db", borderRadius: "8px", padding: "8px", backgroundColor: "#f9fafb" }}>
+      <div
+        style={{
+          border: "1px solid #d1d5db",
+          borderRadius: "8px",
+          padding: "8px",
+          backgroundColor: "#f9fafb",
+        }}
+      >
         <div
-          style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            cursor: "pointer",
+          }}
           onClick={() => setShowSteps((prev) => !prev)}
         >
-          <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "600" }}>Roster Selection Steps</h3>
-          <span style={{ fontSize: "14px", color: "#4f46e5" }}>{showSteps ? "Hide ▲" : "Show ▼"}</span>
+          <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "600" }}>
+            Roster Selection Steps
+          </h3>
+          <span style={{ fontSize: "14px", color: "#4f46e5" }}>
+            {showSteps ? "Hide ▲" : "Show ▼"}
+          </span>
         </div>
-        {showSteps && <div style={{ marginTop: "8px" }}><Roster_Selection_Steps /></div>}
+        {showSteps && (
+          <div style={{ marginTop: "8px" }}>
+            <Roster_Selection_Steps />
+          </div>
+        )}
       </div>
 
       <h4>Name: {name}</h4>
 
-      {/* Name + Password */}
       {!authenticated && (
-        <form onSubmit={(e) => { e.preventDefault(); handleVerifyPassword(); }} style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-          <DropdownButton title="Select Name" onSelect={handleNameSelect}>{namesList}</DropdownButton>
-          <input type="password" placeholder="Enter password" value={password} onChange={handlePasswordChange} style={{ padding: "4px 8px", borderRadius: "6px", border: "1px solid #ccc" }} />
-          <Button type="submit">Verify</Button>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleVerifyPassword();
+          }}
+          style={{ display: "flex", alignItems: "center", gap: "8px" }}
+        >
+          <DropdownButton
+            id="dropdown-basic-button"
+            title="Select Name"
+            onSelect={handleNameSelect}
+          >
+            {namesList}
+          </DropdownButton>
+
+          <input
+            type="password"
+            autoComplete="off"
+            placeholder="Enter password"
+            value={password}
+            onChange={handlePasswordChange}
+            style={{ padding: "4px 8px", borderRadius: "6px", border: "1px solid #ccc" }}
+          />
+
+          <Button type="submit" style={{ padding: "6px 12px" }}>
+            Verify
+          </Button>
         </form>
       )}
 
       {/* Player Columns */}
       {authenticated && (
         <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginTop: "12px" }}>
-          {Object.entries(playerpool).sort().map(([tier, players]) => {
-            const tierSelected = selectedPlayers[tier] || [];
-            const tierFull = tierSelected.length >= (tierLimits[tier] || 99);
-            return (
-              <div key={tier} style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <h3 style={{ fontSize: "16px", fontWeight: "bold" }}>Tier {tier}</h3>
-                  <span style={{ fontSize: "14px", fontWeight: "500" }}>{tierSelected.length} / {tierLimits[tier]}</span>
-                </div>
-                {sortPlayers(players).map((player) => {
-                  const isSelected = tierSelected.includes(player.player_name);
-                  const disable = !isSelected && (tierFull || (player.position === "QB" && qbCount >= 2));
-                  const colors = positionColors[player.position] || positionColors.default;
-                  return (
-                    <label key={player.player_name} style={{
+          {Object.entries(playerpool).map(([tier, players]) => (
+            <div key={tier} style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              <h3 style={{ fontSize: "16px", fontWeight: "bold" }}>
+                Tier {tier} (Pick {tierLimits[tier] || "—"})
+              </h3>
+              {sortPlayers(players).map((player) => {
+                const tierSelected = selectedPlayers[tier] || [];
+                const isSelected = tierSelected.includes(player.player_name);
+                const allSelectedPlayers = Object.values(selectedPlayers).flat();
+                const qbCount = allSelectedPlayers
+                  .map((p) =>
+                    Object.values(playerpool).flat().find((pl) => pl.player_name === p)
+                  )
+                  .filter((p) => p?.position === "QB").length;
+
+                const disableCheckbox = !isSelected && (
+                  tierSelected.length >= (tierLimits[tier] || 99) ||
+                  (player.position === "QB" && qbCount >= 2)
+                );
+
+                const colors = positionColors[player.position] || positionColors.default;
+
+                return (
+                  <label
+                    key={player.player_name}
+                    style={{
                       display: "flex",
                       alignItems: "center",
                       border: `1px solid ${isSelected ? colors.border : "#ccc"}`,
                       backgroundColor: isSelected ? colors.bg : "#fff",
                       borderRadius: "8px",
                       padding: "4px",
-                      cursor: disable ? "not-allowed" : "pointer",
-                      opacity: disable ? 0.5 : 1,
+                      cursor: disableCheckbox ? "not-allowed" : "pointer",
+                      opacity: disableCheckbox ? 0.5 : 1,
                       fontSize: "12px",
                       color: colors.text,
-                    }}>
-                      <input type="checkbox" checked={isSelected} disabled={disable} onChange={() => handlePlayerSelect(tier, player.player_name)} style={{ marginRight: "6px", width: "16px", height: "16px" }} />
-                      <div>
-                        <span style={{ fontWeight: "500" }}>{player.player_name}</span>
-                        <span style={{ color: "#555", marginLeft: "4px" }}>({player.team} / {player.position})</span>
-                      </div>
-                    </label>
-                  );
-                })}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Selected Roster */}
-      {authenticated && (
-        <div style={{ backgroundColor: "#f3f4f6", padding: "8px", borderRadius: "8px" }}>
-          <h3 style={{ fontSize: "16px", fontWeight: "bold", marginBottom: "8px" }}>Your Roster:</h3>
-          {Object.entries(selectedPlayers).map(([tier, players]) => (
-            <div key={tier} style={{ marginBottom: "6px" }}>
-              <h4 style={{ fontWeight: "600", marginBottom: "4px", fontSize: "14px" }}>{tier}</h4>
-              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                {players.map((player) => {
-                  const playerObj = Object.values(playerpool).flat().find((p) => p.player_name === player);
-                  const colors = positionColors[playerObj?.position] || positionColors.default;
-                  return (
-                    <span key={player} style={{
-                      backgroundColor: colors.bg,
-                      color: colors.text,
-                      padding: "2px 6px",
-                      borderRadius: "9999px",
-                      fontSize: "11px",
-                      fontWeight: "500",
-                    }}>{player}</span>
-                  );
-                })}
-              </div>
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      disabled={disableCheckbox}
+                      onChange={() => handlePlayerSelect(tier, player.player_name)}
+                      style={{ marginRight: "6px", width: "16px", height: "16px" }}
+                    />
+                    <div>
+                      <span style={{ fontWeight: "500" }}>{player.player_name}</span>
+                      <span style={{ color: "#555", marginLeft: "4px" }}>
+                        ({player.team} / {player.position})
+                      </span>
+                    </div>
+                  </label>
+                );
+              })}
             </div>
           ))}
         </div>
       )}
 
-      <Button onClick={handleSubmitClick} disabled={!authenticated || !isRosterValid} style={{
-        marginTop: "16px",
-        padding: "8px 16px",
-        backgroundColor: authenticated && isRosterValid ? "#4f46e5" : "#ccc",
-        color: "#fff",
-        borderRadius: "8px",
-        cursor: authenticated && isRosterValid ? "pointer" : "not-allowed",
-      }}>
+      <Button
+        onClick={handleSubmitClick}
+        disabled={!authenticated || !isRosterValid}
+        style={{
+          marginTop: "16px",
+          padding: "8px 16px",
+          backgroundColor: authenticated && isRosterValid ? "#4f46e5" : "#ccc",
+          color: "#fff",
+          borderRadius: "8px",
+          cursor: authenticated && isRosterValid ? "pointer" : "not-allowed",
+        }}
+      >
         Submit Roster
       </Button>
     </div>
