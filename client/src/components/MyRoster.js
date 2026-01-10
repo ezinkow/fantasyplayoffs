@@ -10,7 +10,7 @@ const ROUND_RULES = {
 };
 
 const ROUND_DEADLINES = {
-  1: new Date("2026-01-10T22:00:00Z"),
+  1: new Date("2026-01-10T23:00:00Z"),
   2: new Date("2026-01-17T21:30:00Z"),
   3: new Date("2026-01-25T20:00:00Z"),
   4: new Date("2026-02-08T23:30:00Z"),
