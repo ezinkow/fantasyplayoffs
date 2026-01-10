@@ -16,6 +16,8 @@ const ROUND_DEADLINES = {
   4: new Date("2026-02-08T23:30:00Z"),
 };
 
+const EMPTY_SLOTS = { QB: [], RB: [], WR: [], SUPERFLEX: [] };
+
 const positionColors = {
   QB: { bg: "#fee2e2", text: "#991b1b" },
   RB: { bg: "#d1fae5", text: "#065f46" },
@@ -30,27 +32,20 @@ export default function MyRoster() {
   const [selectedName, setSelectedName] = useState("");
   const [password, setPassword] = useState("");
   const [authenticated, setAuthenticated] = useState(false);
-  const [slots, setSlots] = useState({ QB: [], RB: [], WR: [], SUPERFLEX: [] });
+  const [slots, setSlots] = useState(EMPTY_SLOTS);
   const [availablePlayers, setAvailablePlayers] = useState([]);
   const [selectedRound, setSelectedRound] = useState(1);
-  const [firstLoad, setFirstLoad] = useState(true);
   const [authError, setAuthError] = useState(false);
-  const [verifying, setVerifying] = useState(false); // prevents double submission
+  const [verifying, setVerifying] = useState(false);
 
-  /* -------------------- FETCH NAMES -------------------- */
+  /* ---------------- FETCH NAMES ---------------- */
   useEffect(() => {
-    async function fetchNames() {
-      try {
-        const res = await axios.get("/api/names");
-        setNames(res.data.sort((a, b) => a.name.localeCompare(b.name)));
-      } catch (err) {
-        console.error(err);
-      }
-    }
-    fetchNames();
+    axios.get("/api/names").then((res) => {
+      setNames(res.data.sort((a, b) => a.name.localeCompare(b.name)));
+    });
   }, []);
 
-  /* -------------------- VERIFY PASSWORD -------------------- */
+  /* ---------------- VERIFY PASSWORD ---------------- */
   const handleVerify = async () => {
     if (!selectedName || !password || verifying) return;
 
@@ -58,55 +53,65 @@ export default function MyRoster() {
     setAuthError(false);
 
     try {
-      const res = await axios.post("/api/names/verify", { name: selectedName, password });
+      const res = await axios.post("/api/names/verify", {
+        name: selectedName,
+        password,
+      });
 
-      if (res.data.success) {
-        setAuthenticated(true);
-        toast.success("Password verified!");
+      if (!res.data.success) throw new Error("Invalid");
 
-        // fetch roster for selected round
-        const rosterRes = await axios.get("/api/startingrosters/my", {
-          params: { name: selectedName, round: selectedRound },
-        });
-        const grouped = { QB: [], RB: [], WR: [], SUPERFLEX: [] };
-        rosterRes.data.forEach((p) => grouped[p.slot].push(p));
-        setSlots(grouped);
+      setAuthenticated(true);
+      toast.success("Password verified!");
 
-        if (firstLoad && rosterRes.data.length) {
-          toast("Editing existing roster");
-          setFirstLoad(false);
-        }
-
-        // fetch available players
-        const playersRes = await axios.get("/api/rosters/getmyroster", {
-          params: { name: selectedName },
-        });
-        setAvailablePlayers(playersRes.data);
-      } else {
-        setAuthenticated(false);
-        setSlots({ QB: [], RB: [], WR: [], SUPERFLEX: [] });
-        setAvailablePlayers([]);
-        setAuthError(true);
-        toast.error("Incorrect password");
-      }
-    } catch (err) {
-      console.error(err);
+      // available players (full roster)
+      const playersRes = await axios.get("/api/rosters/getmyroster", {
+        params: { name: selectedName },
+      });
+      setAvailablePlayers(playersRes.data);
+    } catch {
       setAuthenticated(false);
-      setSlots({ QB: [], RB: [], WR: [], SUPERFLEX: [] });
+      setSlots(EMPTY_SLOTS);
       setAvailablePlayers([]);
       setAuthError(true);
-      toast.error("Password verification failed");
+      toast.error("Incorrect password");
     } finally {
       setVerifying(false);
     }
   };
 
-  /* -------------------- SLOT LOGIC -------------------- */
+  /* ---------------- LOAD STARTING ROSTER ON ROUND CHANGE ---------------- */
+  useEffect(() => {
+    if (!authenticated || !selectedName) return;
+
+    // Clear board immediately
+    setSlots(EMPTY_SLOTS);
+
+    async function loadRoundRoster() {
+      try {
+        const res = await axios.get("/api/startingrosters/my", {
+          params: { name: selectedName, round: selectedRound },
+        });
+
+        if (!res.data.length) return;
+
+        const grouped = { QB: [], RB: [], WR: [], SUPERFLEX: [] };
+        res.data.forEach((p) => grouped[p.slot].push(p));
+        setSlots(grouped);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    loadRoundRoster();
+  }, [selectedRound, authenticated, selectedName]);
+
+  /* ---------------- SLOT LOGIC ---------------- */
   const determineSlot = (player) => {
     const rules = ROUND_RULES[selectedRound];
     if (player.position === "QB" && slots.QB.length < rules.QB) return "QB";
     if (player.position === "RB" && slots.RB.length < rules.RB) return "RB";
-    if ((player.position === "WR" || player.position === "TE") && slots.WR.length < rules.WR) return "WR";
+    if ((player.position === "WR" || player.position === "TE") && slots.WR.length < rules.WR)
+      return "WR";
     if (slots.SUPERFLEX.length < rules.SUPERFLEX) return "SUPERFLEX";
     return null;
   };
@@ -114,8 +119,10 @@ export default function MyRoster() {
   const addToSlot = (player) => {
     const slot = determineSlot(player);
     if (!slot) return toast.error("No available slot");
+
     if (Object.values(slots).flat().some((p) => p.player_name === player.player_name))
-      return toast.error("Player already in your roster");
+      return toast.error("Player already selected");
+
     setSlots((prev) => ({ ...prev, [slot]: [...prev[slot], player] }));
   };
 
@@ -126,7 +133,7 @@ export default function MyRoster() {
     }));
   };
 
-  /* -------------------- SUBMIT ROSTER -------------------- */
+  /* ---------------- SUBMIT ---------------- */
   const isLocked = ROUND_DEADLINES[selectedRound] && new Date() > ROUND_DEADLINES[selectedRound];
 
   const isComplete = () => {
@@ -140,7 +147,7 @@ export default function MyRoster() {
   };
 
   const handleSubmit = async () => {
-    if (isLocked) return toast.error("Roster is locked for this round");
+    if (isLocked) return toast.error("Roster locked");
 
     const payload = Object.entries(slots).flatMap(([slot, players]) =>
       players.map((p) => ({
@@ -153,139 +160,102 @@ export default function MyRoster() {
       }))
     );
 
-    if (!payload.length) return toast.error("No players selected");
-
     try {
       await axios.put("/api/startingrosters", payload);
       toast.success("Roster saved!");
-    } catch (err) {
-      console.error(err);
-      toast.error("Roster submission failed");
+    } catch {
+      toast.error("Save failed");
     }
   };
 
+  /* ---------------- UI ---------------- */
   return (
-    <div style={{ padding: "16px" }}>
+    <div style={{ padding: 16 }}>
       <Toaster />
-      <h1>My Roster</h1>
+      <h1>My Starting Roster</h1>
 
-      {/* Name + Password */}
-      <div style={{ marginBottom: "16px" }}>
-        <label>
-          Name:{" "}
-          <select
-            value={selectedName}
-            onChange={(e) => {
-              setSelectedName(e.target.value);
-              setPassword("");
-              setAuthenticated(false);
-              setSlots({ QB: [], RB: [], WR: [], SUPERFLEX: [] });
-              setAvailablePlayers([]);
-              setFirstLoad(true);
-              setAuthError(false);
-            }}
-          >
-            <option value="">-- Select Name --</option>
-            {names.map((n) => (
-              <option key={n.id} value={n.name}>
-                {n.name}
+      <select
+        value={selectedName}
+        onChange={(e) => {
+          setSelectedName(e.target.value);
+          setAuthenticated(false);
+          setPassword("");
+          setSlots(EMPTY_SLOTS);
+          setAvailablePlayers([]);
+        }}
+      >
+        <option value="">-- Select Name --</option>
+        {names.map((n) => (
+          <option key={n.id} value={n.name}>
+            {n.name}
+          </option>
+        ))}
+      </select>
+
+      {selectedName && !authenticated && (
+        <div>
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleVerify()}
+          />
+          <button onClick={handleVerify}>Submit</button>
+          {authError && <div style={{ color: "red" }}>Incorrect password</div>}
+        </div>
+      )}
+
+      {authenticated && (
+        <>
+          <select value={selectedRound} onChange={(e) => setSelectedRound(Number(e.target.value))}>
+            {[1, 2, 3, 4].map((r) => (
+              <option key={r} value={r}>
+                Round {r}
               </option>
             ))}
           </select>
-        </label>
-
-        {selectedName && !authenticated && (
-          <div style={{ marginTop: "8px", display: "flex", alignItems: "center", gap: "8px" }}>
-            <input
-              type="password"
-              placeholder="Password"
-              autoComplete="new-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && !verifying && handleVerify()}
-            />
-            <button onClick={handleVerify} disabled={verifying}>
-              Submit
-            </button>
-          </div>
-        )}
-
-        {authError && <div style={{ color: "red", marginTop: "6px" }}>Incorrect password</div>}
-      </div>
-
-      {/* Roster UI */}
-      {authenticated && (
-        <>
-          <label>
-            Round:{" "}
-            <select
-              value={selectedRound}
-              onChange={(e) => setSelectedRound(Number(e.target.value))}
-            >
-              {[1, 2, 3, 4].map((r) => (
-                <option key={r} value={r}>
-                  Round {r}
-                </option>
-              ))}
-            </select>
-          </label>
 
           <h3>Available Players</h3>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-            {availablePlayers.map((player) => {
-              const assigned = Object.values(slots).flat().some((p) => p.player_name === player.player_name);
-              const colors = positionColors[player.position] || positionColors.default;
-              return (
-                <div
-                  key={player.player_name}
-                  onClick={() => !assigned && addToSlot(player)}
-                  style={{
-                    padding: "4px 8px",
-                    borderRadius: "6px",
-                    cursor: assigned ? "not-allowed" : "pointer",
-                    opacity: assigned ? 0.5 : 1,
-                    backgroundColor: colors.bg,
-                    color: colors.text,
-                    border: `1px solid ${colors.text}`,
-                  }}
-                >
-                  {player.player_name} ({player.team} / {player.position})
-                </div>
-              );
-            })}
-          </div>
-
-          <h3 style={{ marginTop: "16px" }}>Roster Slots</h3>
-          <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
-            {Object.entries(slots).map(([slot, players]) => (
-              <div key={slot}>
-                <h4>
-                  {slot}: {players.length} / {ROUND_RULES[selectedRound][slot]}
-                  {players.length < ROUND_RULES[selectedRound][slot] &&
-                    ` (${ROUND_RULES[selectedRound][slot] - players.length} more needed)`}
-                </h4>
-                {players.map((p) => (
-                  <div key={p.player_name}>
-                    {p.player_name} <button onClick={() => removeFromSlot(p, slot)}>✕</button>
-                  </div>
-                ))}
+          {availablePlayers.map((p) => {
+            const used = Object.values(slots).flat().some((x) => x.player_name === p.player_name);
+            const c = positionColors[p.position] || positionColors.default;
+            return (
+              <div
+                key={p.player_name}
+                onClick={() => !used && addToSlot(p)}
+                style={{
+                  background: c.bg,
+                  color: c.text,
+                  margin: 4,
+                  padding: 6,
+                  display: "inline-block",
+                  cursor: used ? "not-allowed" : "pointer",
+                  opacity: used ? 0.5 : 1,
+                }}
+              >
+                {p.player_name} ({p.position})
               </div>
-            ))}
-          </div>
+            );
+          })}
 
-          <button
-            disabled={isLocked || !isComplete()}
-            onClick={handleSubmit}
-            style={{
-              marginTop: "16px",
-              padding: "8px 16px",
-              background: isLocked || !isComplete() ? "#a5b4fc" : "#4f46e5",
-              color: "#fff",
-              border: "none",
-              cursor: isLocked || !isComplete() ? "not-allowed" : "pointer",
-            }}
-          >
-            {isLocked ? "Roster Locked" : "Submit Roster"}
+          <h3>Roster</h3>
+          {Object.entries(slots).map(([slot, players]) => (
+            <div key={slot}>
+              <strong>
+                {slot}: {players.length}/{ROUND_RULES[selectedRound][slot]}
+              </strong>
+              {players.map((p) => (
+                <div key={p.player_name}>
+                  {p.player_name}{" "}
+                  <button onClick={() => removeFromSlot(p, slot)}>✕</button>
+                </div>
+              ))}
+            </div>
+          ))}
+
+          <button disabled={!isComplete() || isLocked} onClick={handleSubmit}>
+            {isLocked ? "Locked" : "Submit Roster"}
           </button>
         </>
       )}

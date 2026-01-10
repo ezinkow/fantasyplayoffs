@@ -13,7 +13,7 @@ export default function Navbar() {
             Create Roster
           </Link>
           <Link to="/myroster" className={isActive("/myroster") ? "active" : ""}>
-            My Roster
+            My Starting Roster
           </Link>
           <Link to="/scoreboard" className={isActive("/scoreboard") ? "active" : ""}>
             Scoreboard
