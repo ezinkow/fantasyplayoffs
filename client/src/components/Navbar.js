@@ -18,9 +18,12 @@ export default function Navbar() {
           <Link to="/scoreboard" className={isActive("/scoreboard") ? "active" : ""}>
             Scoreboard
           </Link>
-          <Link to="/signup" className={isActive("/signup") ? "active" : ""}>
-            Sign Up
+          <Link to="/standings" className={isActive("/standings") ? "active" : ""}>
+            Standings
           </Link>
+          {/* <Link to="/signup" className={isActive("/signup") ? "active" : ""}>
+            Sign Up
+          </Link> */}
         </nav>
 
         <Link to="/" className="navbar-brand">
