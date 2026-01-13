@@ -17,7 +17,7 @@ module.exports = function (sequelize, DataTypes) {
             allowNull: true,
         },
         eliminated: {
-            type: DataTypes.TEXT,
+            type: DataTypes.INTEGER,
             allowNull: true,
         },
         wild_card_score: {

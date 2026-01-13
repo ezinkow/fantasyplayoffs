@@ -2,24 +2,23 @@
 const { PlayerPools } = require("../models");
 
 module.exports = function (app) {
-
-  // Get all PlayerPools (clean + aligned with frontend)
-  app.get("/api/playerpools", async function (req, res) {
+  // ----------------------------------
+  // GET all PlayerPools
+  // ----------------------------------
+  app.get("/api/playerpools", async (req, res) => {
     try {
-      const playerPools = await PlayerPools.findAll();
+      const rows = await PlayerPools.findAll({ raw: true });
 
-      const formatted = playerPools.map((player) => {
-        const parseScore = (val) => {
-          const num = parseFloat(val);
-          return Number.isFinite(num) ? num : 0;
-        };
+      const parseScore = (val) => {
+        const num = parseFloat(val);
+        return Number.isFinite(num) ? num : 0;
+      };
 
+      const formatted = rows.map((player) => {
         const wild = parseScore(player.wild_card_score);
         const div = parseScore(player.divisional_score);
         const conf = parseScore(player.conf_championship_score);
         const sb = parseScore(player.super_bowl_score);
-
-        const total_points = wild + div + conf + sb;
 
         return {
           id: player.id,
@@ -27,24 +26,25 @@ module.exports = function (app) {
           team: player.team,
           position: player.position,
           tier: player.tier,
-          eliminated: player.eliminated,
-          times_selected: player.times_selected, // ✅ hardcoded column
+          eliminated: player.eliminated ?? null, // ✅ CRITICAL
+          times_selected: player.times_selected ?? 0,
+
           wild_card_score: wild,
           divisional_score: div,
           conf_championship_score: conf,
           super_bowl_score: sb,
-          total_points,
+
+          total_points: wild + div + conf + sb,
         };
       });
 
-      // 🔥 sort by total points descending
+      // Optional: sort by total points (used by scoreboard, harmless elsewhere)
       formatted.sort((a, b) => b.total_points - a.total_points);
 
       res.json(formatted);
     } catch (err) {
-      console.error(err);
+      console.error("❌ Failed to fetch player pools:", err);
       res.status(500).json({ error: "Failed to fetch player pools" });
     }
   });
-
 };
